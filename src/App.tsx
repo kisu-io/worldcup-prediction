@@ -21,7 +21,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ToastContainer } from "./components/toast";
 import { HistoryModal } from "./components/history-modal";
-import { syncAppState, saveState } from "./lib/store";
+import { syncAppState, saveState, onUserChange, getCurrentUser } from "./lib/store";
 import type { DBState } from "./lib/store";
 import { fireConfettiBurst, fireConfettiWin } from "./lib/confetti";
 
@@ -60,18 +60,26 @@ export default function HomePage() {
   const [tab, setTab] = useState<"predict" | "result" | "board">("predict");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [userReady, setUserReady] = useState(false);
 
   useEffect(() => {
-    // Initialize from localStorage immediately
-    const unsubscribe = syncAppState((state) => {
-      // Only update if different to avoid re-renders
+    const unsubSync = syncAppState((state) => {
       setDb((prev) => {
         const sJSON = JSON.stringify(state);
         const pJSON = JSON.stringify(prev);
         return sJSON !== pJSON ? state : prev;
       });
     });
-    return () => unsubscribe();
+    const unsubAuth = onUserChange((user) => {
+      setUserReady(true);
+      if (user?.uid && !name) {
+        setName(user.uid.slice(0, 8));
+      }
+    });
+    return () => {
+      unsubSync();
+      unsubAuth();
+    };
   }, []);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
@@ -87,76 +95,104 @@ export default function HomePage() {
   const sortedBoard = Object.entries(db.leaderboard).sort((a, b) => b[1] - a[1]);
 
   const handlePredict = () => {
-    if (!name.trim() || !score.trim()) {
+    const trimmedName = name.trim();
+    const trimmedScore = score.trim();
+
+    if (!trimmedName || !trimmedScore) {
       showToast("Nhập đầy đủ tên và tỉ số", "error");
       return;
     }
-    const same = matchData.predictions.filter((p: { name: string; score: string; time: string }) => p.score === score.trim()).length;
-    if (same >= MAX_PER_SCORE) {
-      showToast("Tỉ số này đã đủ 4 người chọn!", "error");
+    if (trimmedName.length > 30) {
+      showToast("Tên tối đa 30 ký tự", "error");
       return;
     }
-    const newDb = {
-      ...db,
-      matches: {
-        ...db.matches,
-        [match]: {
-          ...matchData,
-          predictions: [
-            ...matchData.predictions,
-            { name: name.trim(), score: score.trim(), time: new Date().toLocaleString("vi-VN") },
-          ],
+    if (!/^\d+\s*[-–:]\s*\d+$/.test(trimmedScore)) {
+      showToast("Tỉ số không hợp lệ (VD: 2-1)", "error");
+      return;
+    }
+
+    setDb((prev) => {
+      const current = prev.matches[match] || { predictions: [], result: null };
+      if (current.result) {
+        showToast("Trận này đã kết thúc!", "error");
+        return prev;
+      }
+      const same = current.predictions.filter((p) => p.score === trimmedScore).length;
+      if (same >= MAX_PER_SCORE) {
+        showToast("Tỉ số này đã đủ 4 người chọn!", "error");
+        return prev;
+      }
+      const next: DBState = {
+        ...prev,
+        matches: {
+          ...prev.matches,
+          [match]: {
+            ...current,
+            predictions: [
+              ...current.predictions,
+              { name: trimmedName, score: trimmedScore, time: new Date().toLocaleString("vi-VN"), uid: getCurrentUser()?.uid || "" },
+            ],
+          },
         },
-      },
-    };
-    setDb(newDb);
-    saveState(newDb);
+      };
+      saveState(next);
+      return next;
+    });
     setScore("");
     showToast("✅ Đã gửi dự đoán!", "success");
   };
 
   const handleResult = () => {
-    if (!actualScore.trim()) {
+    const trimmedResult = actualScore.trim();
+    if (!trimmedResult) {
       showToast("Nhập tỉ số thật", "error");
       return;
     }
-    if (matchData.result) {
-      showToast("Trận này đã chốt!", "error");
+    if (!/^\d+\s*[-–:]\s*\d+$/.test(trimmedResult)) {
+      showToast("Tỉ số không hợp lệ (VD: 2-1)", "error");
       return;
     }
-    const total = totalPlayers * fee;
-    const fundPart = total * 0.1;
-    const winners = matchData.predictions.filter((p: { name: string; score: string; time: string }) => p.score === actualScore.trim());
-    const newLeaderboard = { ...db.leaderboard };
-    let newFund = db.globalFund + fundPart;
 
-    if (winners.length > 0) {
-      const reward = (total * 0.9) / winners.length;
-      winners.forEach((w: { name: string; score: string; time: string }) => {
-        newLeaderboard[w.name] = (newLeaderboard[w.name] || 0) + reward;
-      });
-      fireConfettiBurst();
-      showToast(
-        `🎉 ${winners.length} người trúng — mỗi người ${Math.round(reward).toLocaleString()}đ`,
-        "success"
-      );
-    } else {
-      newFund += total * 0.9;
-      fireConfettiWin();
-      showToast("Không ai trúng — tiền vào quỹ", "info");
-    }
+    setDb((prev) => {
+      const current = prev.matches[match] || { predictions: [], result: null };
+      if (current.result) {
+        showToast("Trận này đã chốt!", "error");
+        return prev;
+      }
+      const total = current.predictions.length * fee;
+      const fundPart = total * 0.1;
+      const winners = current.predictions.filter((p) => p.score === trimmedResult);
+      const newLeaderboard = { ...prev.leaderboard };
+      let newFund = prev.globalFund + fundPart;
 
-    const newDb = {
-      ...db,
-      matches: {
-        ...db.matches,
-        [match]: { ...matchData, result: actualScore.trim() },
-      },
-      leaderboard: newLeaderboard,
-      globalFund: newFund,
-    };
-    setDb(newDb);
-    saveState(newDb);
+      if (winners.length > 0) {
+        const reward = (total * 0.9) / winners.length;
+        winners.forEach((w) => {
+          newLeaderboard[w.name] = (newLeaderboard[w.name] || 0) + reward;
+        });
+        fireConfettiBurst();
+        showToast(
+          `🎉 ${winners.length} người trúng — mỗi người ${Math.round(reward).toLocaleString()}đ`,
+          "success"
+        );
+      } else {
+        newFund += total * 0.9;
+        fireConfettiWin();
+        showToast("Không ai trúng — tiền vào quỹ", "info");
+      }
+
+      const next: DBState = {
+        ...prev,
+        matches: {
+          ...prev.matches,
+          [match]: { ...current, result: trimmedResult },
+        },
+        leaderboard: newLeaderboard,
+        globalFund: newFund,
+      };
+      saveState(next);
+      return next;
+    });
     setActualScore("");
   };
 

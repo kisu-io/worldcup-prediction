@@ -1,0 +1,50 @@
+// Firebase Realtime Database Security Rules
+// Apply these in Firebase Console → Database → Rules
+// NOTE: These rules require Authentication (anonymous auth enabled)
+
+{
+  "rules": {
+    "worldcup": {
+      // Anyone can read (public leaderboard + predictions)
+      ".read": true,
+
+      // Only authenticated users can write
+      ".write": "auth != null",
+
+      "matches": {
+        "$matchId": {
+          // Predictions: any authenticated user can add
+          "predictions": {
+            "$predictionId": {
+              ".write": "auth != null"
+            }
+          },
+
+          // Results: only admin can set/change
+          "result": {
+            ".write": "auth != null && auth.token.admin === true",
+            ".validate": "newData.isString() && newData.val().matches(/^\\d+\\s*[-:]\\s*\\d+$/)"
+          }
+        }
+      },
+
+      "leaderboard": {
+        // Only admin can update leaderboard (via result closure)
+        ".write": "auth != null && auth.token.admin === true"
+      },
+
+      "globalFund": {
+        // Only admin can update fund
+        ".write": "auth != null && auth.token.admin === true"
+      },
+
+      "updatedAt": {
+        ".validate": "newData.isNumber()"
+      },
+
+      "updatedBy": {
+        ".validate": "newData.isString()"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
-// Unified store: Firebase Realtime DB + localStorage fallback
+// Unified store: Firebase Realtime DB + localStorage fallback + Auth
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, set, get } from "firebase/database";
+import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC4cqXffU53-0eMmmo4At89PtkuVUyxuL0",
@@ -13,23 +14,45 @@ const firebaseConfig = {
   measurementId: "G-G04FJ9QGX0"
 };
 
-const isValidConfig = !!firebaseConfig.databaseURL 
+const isValidConfig = !!firebaseConfig.databaseURL
   && !firebaseConfig.databaseURL.includes("YOUR_DATABASE_URL");
 
 let db: any = null;
+let auth: any = null;
+let _currentUser: User | null = null;
+
 if (isValidConfig) {
   try {
     const app = initializeApp(firebaseConfig);
     db = getDatabase(app);
+    auth = getAuth(app);
+    // Auto sign-in anonymously
+    signInAnonymously(auth).catch((e) => {
+      console.warn("Anonymous auth failed:", e);
+    });
+    onAuthStateChanged(auth, (user) => {
+      _currentUser = user;
+    });
   } catch (e) {
     console.warn("Firebase init failed, using localStorage:", e);
   }
+}
+
+export { auth };
+export function getCurrentUser(): User | null { return _currentUser; }
+export function onUserChange(cb: (user: User | null) => void): () => void {
+  if (auth) {
+    return onAuthStateChanged(auth, cb);
+  }
+  cb(null);
+  return () => {};
 }
 
 export type MatchPrediction = {
   name: string;
   score: string;
   time: string;
+  uid?: string; // unique player id from auth
 };
 
 export type MatchData = {
@@ -71,14 +94,15 @@ export function saveState(state: DBState) {
   _state = { ...state };
   saveLocal(state);
   window.dispatchEvent(new CustomEvent("wc:dbchange"));
-  
+
   if (isValidConfig && db) {
     try {
       set(ref(db, "worldcup"), {
         matches: state.matches,
         leaderboard: state.leaderboard,
         globalFund: state.globalFund,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        updatedBy: _currentUser?.uid || "anonymous"
       });
     } catch (e) {
       console.warn("Firebase write failed:", e);
