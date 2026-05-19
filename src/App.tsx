@@ -26,6 +26,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { FIXTURES, getMatchLabel, type RoundKey } from "./lib/schedule";
+import { FixtureSelector } from "./components/fixture-selector";
 import { ToastContainer } from "./components/toast";
 import { HistoryModal } from "./components/history-modal";
 import { PinModal } from "./components/pin-modal";
@@ -423,28 +424,16 @@ export default function HomePage() {
                       <BarChart3 size={15} />
                       <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase">Trận đấu & Vòng</span>
                     </div>
-                    <select
-                      value={matchId}
-                      onChange={(e) => {
-                        const id = e.target.value;
+                    <FixtureSelector
+                      selectedId={matchId}
+                      onSelect={(id) => {
                         setMatchId(id);
                         const f = FIXTURES.find(x => x.id === id)!;
                         setRound(f.round);
                       }}
-                      className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all mb-2.5 appearance-none"
-                    >
-                      {FIXTURES.map((f) => (
-                        <option key={f.id} value={f.id} className="bg-[#0a0f1c] text-white">
-                          {getMatchLabel(f)} — {f.date} {f.group ? `(Nhóm ${f.group})` : f.round}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="text-[10px] sm:text-[11px] text-slate-400 mb-2 flex items-center gap-1">
-                      <span>📍 {currentFixture.venue}</span>
-                      <span>·</span>
-                      <span>⏰ {currentFixture.date} {currentFixture.time}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 mb-2.5">
+                      onRoundChange={(r) => setRound(r)}
+                    />
+                    <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 mt-3 mb-2.5">
                       <span className="text-xs text-slate-400">Vòng đấu</span>
                       <span className="text-sm font-semibold text-amber-400">{round}</span>
                     </div>
