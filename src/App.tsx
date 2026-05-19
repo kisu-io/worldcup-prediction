@@ -21,7 +21,8 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { ToastContainer } from "./components/toast";
 import { HistoryModal } from "./components/history-modal";
-import { loadState, saveState } from "./lib/store";
+import { syncAppState, saveState } from "./lib/store";
+import type { DBState } from "./lib/store";
 import { fireConfettiBurst, fireConfettiWin } from "./lib/confetti";
 
 const ROUND_FEES: Record<string, number> = {
@@ -50,7 +51,7 @@ const variants = {
 };
 
 export default function HomePage() {
-  const [db, setDb] = useState(() => loadState());
+  const [db, setDb] = useState<DBState>({ matches: {}, leaderboard: {}, globalFund: 0 });
   const [name, setName] = useState("");
   const [match, setMatch] = useState("Brazil vs Argentina");
   const [round, setRound] = useState("Vòng bảng");
@@ -61,9 +62,16 @@ export default function HomePage() {
   const [toast, setToast] = useState<Toast | null>(null);
 
   useEffect(() => {
-    const handler = () => setDb(loadState());
-    window.addEventListener("wc:dbchange", handler);
-    return () => window.removeEventListener("wc:dbchange", handler);
+    // Initialize from localStorage immediately
+    const unsubscribe = syncAppState((state) => {
+      // Only update if different to avoid re-renders
+      setDb((prev) => {
+        const sJSON = JSON.stringify(state);
+        const pJSON = JSON.stringify(prev);
+        return sJSON !== pJSON ? state : prev;
+      });
+    });
+    return () => unsubscribe();
   }, []);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
@@ -83,7 +91,7 @@ export default function HomePage() {
       showToast("Nhập đầy đủ tên và tỉ số", "error");
       return;
     }
-    const same = matchData.predictions.filter((p) => p.score === score.trim()).length;
+    const same = matchData.predictions.filter((p: { name: string; score: string; time: string }) => p.score === score.trim()).length;
     if (same >= MAX_PER_SCORE) {
       showToast("Tỉ số này đã đủ 4 người chọn!", "error");
       return;
@@ -118,13 +126,13 @@ export default function HomePage() {
     }
     const total = totalPlayers * fee;
     const fundPart = total * 0.1;
-    const winners = matchData.predictions.filter((p) => p.score === actualScore.trim());
+    const winners = matchData.predictions.filter((p: { name: string; score: string; time: string }) => p.score === actualScore.trim());
     const newLeaderboard = { ...db.leaderboard };
     let newFund = db.globalFund + fundPart;
 
     if (winners.length > 0) {
       const reward = (total * 0.9) / winners.length;
-      winners.forEach((w) => {
+      winners.forEach((w: { name: string; score: string; time: string }) => {
         newLeaderboard[w.name] = (newLeaderboard[w.name] || 0) + reward;
       });
       fireConfettiBurst();
@@ -315,7 +323,7 @@ export default function HomePage() {
                     </div>
                     <div className="grid gap-2 max-h-72 overflow-y-auto pr-1">
                       <AnimatePresence>
-                        {matchData.predictions.map((p, i) => (
+                        {matchData.predictions.map((p: { name: string; score: string; time: string }, i: number) => (
                           <motion.div
                             key={`${p.name}-${p.score}-${i}`}
                             initial={{ opacity: 0, x: -12 }}
