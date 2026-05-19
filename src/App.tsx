@@ -25,6 +25,7 @@ import {
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
+import { FIXTURES, getMatchLabel, type RoundKey } from "./lib/schedule";
 import { ToastContainer } from "./components/toast";
 import { HistoryModal } from "./components/history-modal";
 import { PinModal } from "./components/pin-modal";
@@ -33,16 +34,7 @@ import type { DBState } from "./lib/store";
 import { fireConfettiBurst, fireConfettiWin } from "./lib/confetti";
 import { isAdmin, logoutAdmin } from "./lib/admin";
 
-const ROUND_FEES: Record<string, number> = {
-  "Vòng bảng": 10000,
-  "Vòng 1/32": 20000,
-  "Vòng 1/16": 30000,
-  "Vòng 1/8": 40000,
-  "Tứ kết": 50000,
-  "Tranh hạng 3": 80000,
-  "Chung kết": 100000,
-};
-
+import { ROUND_FEES } from "./lib/schedule";
 const ROUNDS = Object.keys(ROUND_FEES);
 const MAX_PER_SCORE = 4;
 
@@ -64,8 +56,9 @@ const variants = {
 export default function HomePage() {
   const [db, setDb] = useState<DBState>({ matches: {}, leaderboard: {}, globalFund: 0 });
   const [name, setName] = useState("");
-  const [match, setMatch] = useState("Brazil vs Argentina");
-  const [round, setRound] = useState("Vòng bảng");
+  const [matchId, setMatchId] = useState(FIXTURES[0].id);
+  const [round, setRound] = useState<RoundKey>("Vòng bảng");
+  const currentFixture = FIXTURES.find(f => f.id === matchId)!;
   const [score, setScore] = useState("");
   const [actualScore, setActualScore] = useState("");
   const [tab, setTab] = useState<TabId>("predict");
@@ -104,7 +97,8 @@ export default function HomePage() {
 
   const dismissToast = useCallback(() => setToast(null), []);
 
-  const matchData = db.matches[match] || { predictions: [], result: null };
+  const matchKey = getMatchLabel(currentFixture);
+  const matchData = db.matches[matchKey] || { predictions: [], result: null };
   const fee = ROUND_FEES[round];
   const totalPlayers = matchData.predictions.length;
   const totalMoney = totalPlayers * fee;
@@ -142,7 +136,7 @@ export default function HomePage() {
         ...prev,
         matches: {
           ...prev.matches,
-          [match]: {
+          [matchKey]: {
             ...current,
             predictions: [
               ...current.predictions,
@@ -201,7 +195,7 @@ export default function HomePage() {
         ...prev,
         matches: {
           ...prev.matches,
-          [match]: { ...current, result: trimmedResult },
+          [matchKey]: { ...current, result: trimmedResult },
         },
         leaderboard: newLeaderboard,
         globalFund: newFund,
@@ -429,23 +423,31 @@ export default function HomePage() {
                       <BarChart3 size={15} />
                       <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase">Trận đấu & Vòng</span>
                     </div>
-                    <Input
-                      placeholder="Tên trận (VD: Brazil vs Argentina)"
-                      value={match}
-                      onChange={(e) => setMatch(e.target.value)}
-                      className="mb-2.5"
-                    />
                     <select
-                      value={round}
-                      onChange={(e) => setRound(e.target.value)}
+                      value={matchId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setMatchId(id);
+                        const f = FIXTURES.find(x => x.id === id)!;
+                        setRound(f.round);
+                      }}
                       className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all mb-2.5 appearance-none"
                     >
-                      {ROUNDS.map((r) => (
-                        <option key={r} value={r} className="bg-[#0a0f1c] text-white">
-                          {r}
+                      {FIXTURES.map((f) => (
+                        <option key={f.id} value={f.id} className="bg-[#0a0f1c] text-white">
+                          {getMatchLabel(f)} — {f.date} {f.group ? `(Nhóm ${f.group})` : f.round}
                         </option>
                       ))}
                     </select>
+                    <div className="text-[10px] sm:text-[11px] text-slate-400 mb-2 flex items-center gap-1">
+                      <span>📍 {currentFixture.venue}</span>
+                      <span>·</span>
+                      <span>⏰ {currentFixture.date} {currentFixture.time}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 mb-2.5">
+                      <span className="text-xs text-slate-400">Vòng đấu</span>
+                      <span className="text-sm font-semibold text-amber-400">{round}</span>
+                    </div>
                     <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-slate-400">Phí tham gia</span>
                       <span className="text-amber-400 font-bold">{fee.toLocaleString()}đ / người</span>
@@ -494,7 +496,7 @@ export default function HomePage() {
                         <Clock size={15} />
                         <span className="text-[11px] sm:text-xs font-bold tracking-wider uppercase">Dự đoán trực tiếp</span>
                       </div>
-                      <span className="text-[10px] sm:text-xs text-slate-400">{match}</span>
+                      <span className="text-[10px] sm:text-xs text-slate-400">{currentFixture.homeTeam} vs {currentFixture.awayTeam}</span>
                     </div>
                     <div className="grid gap-2 max-h-72 overflow-y-auto pr-1">
                       <AnimatePresence>
@@ -566,7 +568,7 @@ export default function HomePage() {
                     <div className="bg-white/[0.03] rounded-xl p-3 mb-4 text-xs sm:text-sm space-y-1.5">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Trận</span>
-                        <span className="font-medium">{match}</span>
+                        <span className="font-medium">{currentFixture.homeTeam} vs {currentFixture.awayTeam}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Vòng</span>
