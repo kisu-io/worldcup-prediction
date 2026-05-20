@@ -35,7 +35,7 @@ import type { DBState } from "./lib/store";
 import { fireConfettiBurst, fireConfettiWin } from "./lib/confetti";
 import { isAdmin, logoutAdmin } from "./lib/admin";
 
-import { ROUND_FEES } from "./lib/schedule";
+import { ROUND_FEES, ROUND_FUND_RATES } from "./lib/schedule";
 const ROUNDS = Object.keys(ROUND_FEES);
 const MAX_PER_SCORE = 4;
 
@@ -171,13 +171,14 @@ export default function HomePage() {
         return prev;
       }
       const total = current.predictions.length * fee;
-      const fundPart = total * 0.1;
+      const fundRate = ROUND_FUND_RATES[round];
+      const fundPart = total * fundRate;
       const winners = current.predictions.filter((p) => p.score === trimmedResult);
       const newLeaderboard = { ...prev.leaderboard };
       let newFund = prev.globalFund + fundPart;
 
       if (winners.length > 0) {
-        const reward = (total * 0.9) / winners.length;
+        const reward = (total * (1 - fundRate)) / winners.length;
         winners.forEach((w) => {
           newLeaderboard[w.name] = (newLeaderboard[w.name] || 0) + reward;
         });
@@ -187,7 +188,7 @@ export default function HomePage() {
           "success"
         );
       } else {
-        newFund += total * 0.9;
+        newFund += total * (1 - fundRate);
         fireConfettiWin();
         showToast("Không ai trúng — tiền vào quỹ", "info");
       }

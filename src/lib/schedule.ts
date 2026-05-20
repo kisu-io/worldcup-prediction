@@ -30,11 +30,22 @@ export type RoundKey = typeof ROUND_KEYS[number];
 export const ROUND_FEES: Record<RoundKey, number> = {
   "Vòng bảng": 10000,
   "Vòng 1/32": 20000,
-  "Vòng 1/16": 30000,
-  "Vửng 1/8": 40000,
-  "Tứ kết": 50000,
-  "Tranh hạng 3": 80000,
+  "Vòng 1/16": 20000,
+  "Vửng 1/8": 20000,
+  "Tứ kết": 20000,
+  "Tranh hạng 3": 50000,
   "Chung kết": 100000,
+};
+
+// Tỉ lệ trích vào quỹ sinh hoạt: Vòng bảng 10%, Knockout 20%, 2 trận cuối 30%
+export const ROUND_FUND_RATES: Record<RoundKey, number> = {
+  "Vòng bảng": 0.10,
+  "Vòng 1/32": 0.20,
+  "Vòng 1/16": 0.20,
+  "Vửng 1/8": 0.20,
+  "Tứ kết": 0.20,
+  "Tranh hạng 3": 0.30,
+  "Chung kết": 0.30,
 };
 
 // Groups (drawn Dec 5, 2025)
