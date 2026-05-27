@@ -4,8 +4,8 @@ const ROUND_FUND_RATES: Record<string, number> = {
   "Vòng bảng": 0.10,
   "Vòng 1/32": 0.20,
   "Vòng 1/16": 0.20,
-  "Vòng 1/8": 0.20,
   "Tứ kết": 0.20,
+  "Bán kết": 0.20,
   "Tranh hạng 3": 0.30,
   "Chung kết": 0.30,
 };
@@ -14,8 +14,8 @@ const ROUND_FEES: Record<string, number> = {
   "Vòng bảng": 10000,
   "Vòng 1/32": 20000,
   "Vòng 1/16": 20000,
-  "Vòng 1/8": 20000,
   "Tứ kết": 20000,
+  "Bán kết": 20000,
   "Tranh hạng 3": 50000,
   "Chung kết": 100000,
 };

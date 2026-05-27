@@ -44,8 +44,8 @@ const ROUND_SHORT: Record<RoundKey, string> = {
   "Vòng bảng": "Bảng",
   "Vòng 1/32": "1/32",
   "Vòng 1/16": "1/16",
-  "Vòng 1/8": "BK",
   "Tứ kết": "Tứ kết",
+  "Bán kết": "BK",
   "Tranh hạng 3": "H3",
   "Chung kết": "CK",
 };
@@ -81,7 +81,7 @@ export function FixtureSelector({ selectedId, onSelect, onRoundChange }: Fixture
     <div className="space-y-3">
       {/* Round selector pills */}
       <div className="flex flex-wrap gap-1.5">
-        {(["Vòng bảng", "Vòng 1/32", "Vòng 1/16", "Tứ kết", "Tranh hạng 3", "Chung kết"] as RoundKey[]).map((r) => (
+        {(["Vòng bảng", "Vòng 1/32", "Vòng 1/16", "Tứ kết", "Bán kết", "Tranh hạng 3", "Chung kết"] as RoundKey[]).map((r) => (
           <button
             key={r}
             onClick={() => handleRoundChange(r)}
