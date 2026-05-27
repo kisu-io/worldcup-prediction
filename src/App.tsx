@@ -3,6 +3,9 @@ import { useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import MatchListPage from "./pages/MatchListPage";
+import MatchBetPage from "./pages/MatchBetPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import RecoveryPage from "./pages/RecoveryPage";
@@ -39,7 +42,31 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <MatchListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/match/:matchId"
+          element={
+            <ProtectedRoute>
+              <MatchBetPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <LeaderboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <MatchListPage />
             </ProtectedRoute>
           }
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 
@@ -9,6 +10,15 @@ export interface Toast {
   id: string;
   message: string;
   type: ToastType;
+}
+
+export function useToast() {
+  const [toast, setToast] = useState<Toast | null>(null);
+  const showToast = (message: string, type: ToastType = "info") => {
+    setToast({ id: Date.now().toString(), message, type });
+  };
+  const dismissToast = () => setToast(null);
+  return { toast, showToast, dismissToast };
 }
 
 export function ToastContainer({ toast, onDismiss }: { toast: Toast | null; onDismiss: () => void }) {
