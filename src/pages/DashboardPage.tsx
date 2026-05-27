@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -53,6 +53,7 @@ const variants = {
 
 export default function DashboardPage() {
   const { user, profile, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [db, setDb] = useState<DBState>({ matches: {}, leaderboard: {}, globalFund: 0 });
   const [name, setName] = useState(profile?.display_name || "");
   const [matchId, setMatchId] = useState(FIXTURES[0].id);
@@ -213,8 +214,8 @@ export default function DashboardPage() {
             </button>
             {isAdmin && (
               <a
-                href="#/admin"
-                onClick={(e) => { e.preventDefault(); window.location.hash = "#/admin"; }}
+                href="/admin"
+                onClick={(e) => { e.preventDefault(); navigate("/admin"); }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-amber-400 hover:bg-white/[0.05] transition-colors cursor-pointer"
               >
                 <Settings size={14} />

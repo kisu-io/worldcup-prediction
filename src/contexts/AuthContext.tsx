@@ -83,17 +83,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { display_name: displayName } },
     });
     if (error) return { error: error.message };
+    
+    // Profile is auto-created by DB trigger, but update display_name just in case
     if (data.user) {
-      // Create profile
-      const { error: profileError } = await supabase.from("profiles").insert({
+      await supabase.from("profiles").upsert({
         id: data.user.id,
         display_name: displayName,
         email: email,
         role: "user",
         total_points: 0,
         total_predictions: 0,
-      });
-      if (profileError) console.error("Profile insert error:", profileError);
+      }, { onConflict: "id" });
+      // Fetch profile immediately
+      await fetchProfile(data.user.id);
     }
     return {};
   };
