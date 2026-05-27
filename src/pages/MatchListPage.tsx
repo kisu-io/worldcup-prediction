@@ -2,9 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Trophy,
   User,
-  ChevronRight,
   Flame,
   LogOut,
   History,
@@ -16,10 +14,13 @@ import { ToastContainer, useToast } from "../components/toast";
 import { HistoryModal } from "../components/history-modal";
 import { syncAppState } from "../lib/store";
 import type { DBState } from "../lib/store";
-import { FIXTURES, ROUND_KEYS, getMatchLabel, ROUND_FEES } from "../lib/schedule";
+import { FIXTURES, getMatchLabel, ROUND_FEES, GROUPS } from "../lib/schedule";
 import { useAuth } from "../contexts/AuthContext";
 import { BottomNav } from "../components/bottom-nav";
-import type { RoundKey } from "../lib/schedule";
+
+const GROUP_ORDER = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+
+type GroupKey = typeof GROUP_ORDER[number];
 
 export default function MatchListPage() {
   const { user, profile, signOut, isAdmin } = useAuth();
@@ -27,10 +28,9 @@ export default function MatchListPage() {
   const { toast, showToast, dismissToast } = useToast();
 
   const [db, setDb] = useState<DBState>({ matches: {}, leaderboard: {}, globalFund: 0 });
-  const [roundFilter, setRoundFilter] = useState<RoundKey | "Tất cả">("Tất cả");
+  const [activeGroup, setActiveGroup] = useState<GroupKey | "ALL">("ALL");
   const [showProfile, setShowProfile] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [showFilter, setShowFilter] = useState(false);
 
   useEffect(() => {
     const unsub = syncAppState((state) => setDb(state));
@@ -61,32 +61,32 @@ export default function MatchListPage() {
     return db.matches[key]?.predictions.length || 0;
   };
 
-  const filteredFixtures = useMemo(() => {
-    let list = [...FIXTURES];
-    if (roundFilter !== "Tất cả") {
-      list = list.filter((f) => f.round === roundFilter);
-    }
+  // Only group-stage fixtures
+  const groupStageFixtures = useMemo(() => {
+    return FIXTURES.filter((f) => f.round === "Vòng bảng" && (activeGroup === "ALL" || f.group === activeGroup));
+  }, [activeGroup, db]); // db included so status refresh triggers re-sort
 
-    list.sort((a, b) => {
-      const statusA = getMatchStatus(a.id);
-      const statusB = getMatchStatus(b.id);
-      const statusOrder: Record<string, number> = { open: 0, locked: 1, closed: 2 };
-      if (statusOrder[statusA] !== statusOrder[statusB]) return statusOrder[statusA] - statusOrder[statusB];
-
-      const dateA = new Date(`${a.date}T${a.time}`).getTime();
-      const dateB = new Date(`${b.date}T${b.time}`).getTime();
-      return dateA - dateB;
+  const fixturesByGroup = useMemo(() => {
+    const map: Record<string, typeof FIXTURES> = {};
+    groupStageFixtures.forEach((f) => {
+      const g = f.group || "?";
+      if (!map[g]) map[g] = [];
+      map[g].push(f);
     });
+    // Sort each group's matches by date
+    Object.keys(map).forEach((g) => {
+      map[g].sort((a, b) => {
+        const da = new Date(`${a.date}T${a.time}`).getTime();
+        const db_ = new Date(`${b.date}T${b.time}`).getTime();
+        return da - db_;
+      });
+    });
+    return map;
+  }, [groupStageFixtures]);
 
-    return list;
-  }, [roundFilter, db]);
-
-  const roundLabel = (r: string) => {
-    if (r === "Vòng bảng") return "🏆 " + r;
-    if (r.includes("1/32")) return "🔥 " + r;
-    if (r.includes("1/16")) return "⚡ " + r;
-    if (r.includes("kết")) return "🏅 " + r;
-    return r;
+  const groupHeader = (g: string) => {
+    const teams = GROUPS[g]?.join(" · ") || "";
+    return `Nhóm ${g} — ${teams}`;
   };
 
   return (
@@ -166,59 +166,74 @@ export default function MatchListPage() {
         </div>
       </motion.div>
 
-      {/* Filter */}
+      {/* Group Filter Tabs */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="relative z-10 max-w-lg mx-auto px-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm sm:text-base font-bold text-white">Danh sách trận đấu</h2>
-          <button
-            onClick={() => setShowFilter(!showFilter)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-slate-300 hover:bg-white/[0.06] transition-colors cursor-pointer"
-          >
-            <Filter size={12} /> {roundFilter === "Tất cả" ? "Lọc vòng" : roundFilter}
-            <ChevronRight size={12} className={`transition-transform ${showFilter ? "rotate-90" : ""}`} />
-          </button>
+          <h2 className="text-sm sm:text-base font-bold text-white">Vòng bảng</h2>
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            <Filter size={11} /> Lọc nhóm
+          </div>
         </div>
-
-        {showFilter && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <button
+            onClick={() => setActiveGroup("ALL")}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+              activeGroup === "ALL"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-slate-200"
+            }`}
+          >
+            All
+          </button>
+          {GROUP_ORDER.map((g) => (
             <button
-              onClick={() => setRoundFilter("Tất cả")}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${roundFilter === "Tất cả" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-slate-200"}`}
+              key={g}
+              onClick={() => setActiveGroup(g)}
+              className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeGroup === g
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  : "bg-white/[0.03] text-slate-500 border border-white/[0.06] hover:text-white"
+              }`}
             >
-              Tất cả
+              {g}
             </button>
-            {ROUND_KEYS.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRoundFilter(r)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${roundFilter === r ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "bg-white/[0.03] text-slate-400 border border-white/[0.06] hover:text-slate-200"}`}
-              >
-                {r}
-              </button>
-            ))}
-          </motion.div>
-        )}
+          ))}
+        </div>
       </motion.div>
 
-      {/* Match Grid */}
-      <div className="relative z-10 max-w-lg mx-auto px-4 mt-2 space-y-3 sm:space-y-4">
-        {filteredFixtures.length > 0 ? (
-          filteredFixtures.map((fixture, i) => {
-            const status = getMatchStatus(fixture.id);
-            const predCount = getPredictionCount(fixture.id);
-            return (
-              <MatchCard
-                key={fixture.id}
-                fixture={fixture}
-                status={status}
-                predictionCount={predCount}
-                onClick={() => navigate(`/match/${fixture.id}`)}
-              />
-            );
-          })
+      {/* Match Grid — grouped by table */}
+      <div className="relative z-10 max-w-lg mx-auto px-4 mt-2 space-y-6 sm:space-y-8 pb-6">
+        {Object.entries(fixturesByGroup).length > 0 ? (
+          Object.entries(fixturesByGroup).map(([group, fixtures]) => (
+            <div key={group}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-bold">
+                  Nhóm {group}
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  {GROUPS[group]?.join(" · ") || ""}
+                </span>
+              </div>
+              <div className="space-y-3 sm:space-y-4">
+                {fixtures.map((fixture) => {
+                  const status = getMatchStatus(fixture.id);
+                  const predCount = getPredictionCount(fixture.id);
+                  return (
+                    <MatchCard
+                      key={fixture.id}
+                      fixture={fixture}
+                      status={status}
+                      predictionCount={predCount}
+                      onClick={() => navigate(`/match/${fixture.id}`)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))
         ) : (
           <div className="text-center py-12 text-slate-500 text-sm">
-            Không có trận nào trong vòng này
+            Không có trận nào trong nhóm này
           </div>
         )}
       </div>
