@@ -136,7 +136,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"
-                  required={mode !== "forgot"}
+                  required={true}
                   minLength={6}
                 />
               </div>
