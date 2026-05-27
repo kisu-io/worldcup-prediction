@@ -29,25 +29,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const REDIRECT_URL = "https://kisu-io.github.io/worldcup-prediction/";
 
+const PROFILE_KEY = "wc2026_profile_cache";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(() => {
+    try {
+      const cached = localStorage.getItem(PROFILE_KEY);
+      if (cached) return JSON.parse(cached) as Profile;
+    } catch { /* ignore */ }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const isAdmin = profile?.role === "admin";
 
   const fetchProfile = async (uid: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", uid)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", uid)
+        .single();
 
-    if (error) {
-      console.error("Failed to fetch profile:", error);
-      return;
+      if (error) {
+        console.warn("Failed to fetch profile:", error);
+        return false;
+      }
+      setProfile(data as Profile);
+      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+      return true;
+    } catch (err) {
+      console.error("fetchProfile exception:", err);
+      return false;
     }
-    setProfile(data as Profile);
   };
 
   useEffect(() => {
@@ -139,6 +154,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setProfile(null);
+    try { localStorage.removeItem(PROFILE_KEY); } catch { /* ignore */ }
+    window.location.assign("https://kisu-io.github.io/worldcup-prediction/");
   };
 
   const refreshProfile = async () => {
