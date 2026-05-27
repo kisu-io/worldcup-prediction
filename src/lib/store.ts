@@ -4,29 +4,31 @@ import { supabase, supabaseUrl } from "./supabase";
 const isValidConfig = !!supabaseUrl && !supabaseUrl.includes("YOUR_SUPABASE_URL");
 
 let _currentUserId: string | null = null;
-let _anonInitialized = false;
+let _currentUser: any = null;
 
-async function ensureAnonUser() {
-  if (!isValidConfig || _anonInitialized) return;
-  _anonInitialized = true;
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    _currentUserId = session.user.id;
-    return;
-  }
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) console.warn("Supabase anon auth failed:", error);
-}
-
-ensureAnonUser();
-
+// Listen for real auth changes (no auto-anonymous)
 supabase.auth.onAuthStateChange((_event, session) => {
   _currentUserId = session?.user?.id || null;
+  _currentUser = session?.user || null;
 });
+
+// Init once from any existing session
+supabase.auth.getSession().then(({ data }) => {
+  _currentUserId = data.session?.user?.id || null;
+  _currentUser = data.session?.user || null;
+});
+
+export function getCurrentUser() {
+  return _currentUser;
+}
 
 export function getCurrentUserId(): string | null {
   if (!isValidConfig) return null;
   return _currentUserId;
+}
+
+export function isLoggedIn(): boolean {
+  return !!_currentUserId;
 }
 
 export function onUserChange(cb: (userId: string | null) => void): () => void {

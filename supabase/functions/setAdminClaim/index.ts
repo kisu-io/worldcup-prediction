@@ -29,17 +29,30 @@ Deno.serve(async (req) => {
   const master = Deno.env.get("ADMIN_SECRET") || "2026-admin";
   const isValidSecret = secret === master;
 
-  const { data: existing } = await supabase.from("admins").select("user_id").eq("user_id", callerId).single();
+  // Check if caller is already admin
+  const { data: callerProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", callerId)
+    .single();
 
-  if (!existing && !isValidSecret) {
-    return new Response(JSON.stringify({ error: "Secret không đúng." }), { status: 403 });
+  const isAdmin = callerProfile?.role === "admin";
+
+  // Only admins or those with valid secret can promote
+  if (!isAdmin && !isValidSecret) {
+    return new Response(JSON.stringify({ error: "Secret không đúng hoặc bạn chưa phải admin." }), { status: 403 });
   }
 
-  if (existing?.user_id !== callerId && callerId !== uid && !isValidSecret) {
-    return new Response(JSON.stringify({ error: "Chỉ admin mới có thể thêm admin khác." }), { status: 403 });
-  }
+  // Promote target user to admin
+  const { error } = await supabase.from("profiles").upsert({
+    id: uid,
+    role: "admin",
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "id" });
 
-  await supabase.from("admins").insert({ user_id: uid });
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
 
   return new Response(JSON.stringify({ success: true, uid }), { status: 200 });
 });

@@ -41,13 +41,23 @@ interface AppState {
 }
 
 async function isAdmin(supabase: any, userId: string, secret: string): Promise<boolean> {
-  const { data } = await supabase.from("admins").select("user_id").eq("user_id", userId).single();
-  if (data) return true;
+  // Check profiles.role = 'admin'
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (profile?.role === "admin") return true;
 
   // First-time bootstrap via secret
   const master = Deno.env.get("ADMIN_SECRET") || "2026-admin";
   if (secret === master) {
-    await supabase.from("admins").insert({ user_id: userId }).catch(() => {});
+    // Promote to admin
+    await supabase.from("profiles").upsert({
+      id: userId,
+      role: "admin",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
     return true;
   }
   return false;
