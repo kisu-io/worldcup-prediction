@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield,
@@ -29,6 +29,7 @@ interface Toast { id: string; message: string; type: ToastType; }
 
 export default function AdminDashboardPage() {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [db, setDb] = useState<DBState>({ matches: {}, leaderboard: {}, globalFund: 0 });
   const [activeTab, setActiveTab] = useState<"matches" | "export" | "winners">("matches");
   const [toast, setToast] = useState<Toast | null>(null);
@@ -195,13 +196,13 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors"
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} />
               Về app
-            </Link>
+            </button>
             <button
               onClick={() => signOut()}
               className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-rose-400 hover:bg-rose-500/10 transition-colors"
