@@ -36,8 +36,12 @@ import { ROUND_FEES, ROUND_FUND_RATES } from "../lib/schedule";
 const ROUNDS = Object.keys(ROUND_FEES);
 const MAX_PER_SCORE = 4;
 
-const ALL_TABS = ["predict", "result", "board"] as const;
-type TabId = typeof ALL_TABS[number];
+const BASE_TABS = [
+    { id: "predict" as const, label: "Dự đoán", icon: CircleDot },
+    { id: "board" as const, label: "BXH", icon: Trophy },
+];
+const ADMIN_TAB = { id: "result" as const, label: "Chốt trận", icon: Lock };
+type TabId = typeof BASE_TABS[number]["id"] | typeof ADMIN_TAB["id"];
 
 type ToastType = "success" | "error" | "info";
 interface Toast { id: string; message: string; type: ToastType; }
@@ -148,6 +152,10 @@ export default function DashboardPage() {
   };
 
   const handleResult = async () => {
+    if (!isAdmin) {
+      showToast("Không có quyền chốt trận", "error");
+      return;
+    }
     const trimmedResult = actualScore.trim();
     if (!trimmedResult) {
       showToast("Nhập tỉ số thật", "error");
@@ -171,11 +179,7 @@ export default function DashboardPage() {
     setIsSubmitting(false);
   };
 
-  const TABS = [
-    { id: "predict" as const, label: "Dự đoán", icon: CircleDot },
-    { id: "result" as const, label: "Chốt trận", icon: Lock },
-    { id: "board" as const, label: "BXH", icon: Trophy },
-  ];
+  const TABS = isAdmin ? [...BASE_TABS, ADMIN_TAB] : [...BASE_TABS];
 
   return (
     <div className="min-h-screen bg-[#0a0f1c] text-slate-200 pb-8">
