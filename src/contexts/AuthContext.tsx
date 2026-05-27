@@ -147,15 +147,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("Sign out failed:", err);
-    }
+    // 1. IMMEDIATE local cleanup — không chờ API
     setUser(null);
     setProfile(null);
     try { localStorage.removeItem(PROFILE_KEY); } catch { /* ignore */ }
-    window.location.assign("https://kisu-io.github.io/worldcup-prediction/");
+
+    // 2. Force redirect ngay để clear browser memory/state
+    window.location.replace("https://kisu-io.github.io/worldcup-prediction/");
+
+    // 3. Fire Supabase signOut ở background (có timeout 3s)
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("signOut timeout")), 3000))
+      ]);
+    } catch (err) {
+      console.warn("Supabase signOut failed/timed out (expected if stale session):", err);
+    }
   };
 
   const refreshProfile = async () => {
