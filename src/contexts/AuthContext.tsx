@@ -19,11 +19,15 @@ interface AuthContextType {
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, displayName: string) => Promise<{ error?: string }>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const REDIRECT_URL = "https://kisu-io.github.io/worldcup-prediction/";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -80,11 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: REDIRECT_URL,
+      },
     });
     if (error) return { error: error.message };
     
-    // Profile is auto-created by DB trigger, but update display_name just in case
     if (data.user) {
       await supabase.from("profiles").upsert({
         id: data.user.id,
@@ -94,10 +100,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         total_points: 0,
         total_predictions: 0,
       }, { onConflict: "id" });
-      // Fetch profile immediately
       await fetchProfile(data.user.id);
     }
     return {};
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: REDIRECT_URL,
+    });
+    return { error: error?.message };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message };
   };
 
   const signOut = async () => {
@@ -111,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, isLoading, isAdmin, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, isLoading, isAdmin, signIn, signUp, resetPassword, updatePassword, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
