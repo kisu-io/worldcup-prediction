@@ -9,7 +9,7 @@ interface BottomNavProps {
 const NAV_ITEMS = [
   { id: "matches" as const, label: "Trận đấu", icon: Calendar, path: "/" },
   { id: "leaderboard" as const, label: "BXH", icon: Trophy, path: "/leaderboard" },
-  { id: "account" as const, label: "Tài khoản", icon: User, path: "/account" },
+  { id: "account" as const, label: "Tài khoản", icon: User, path: "/" },
 ];
 
 export function BottomNav({ active }: BottomNavProps) {

@@ -126,7 +126,9 @@ export default function AdminDashboardPage() {
       if (!data.result) return;
       const matchPredictions = data.predictions.filter(p => p.score === data.result);
       if (matchPredictions.length > 0) {
-        const reward = Math.floor(data.predictions.length * (ROUND_FEES[FIXTURES[0].round] || 5000) / matchPredictions.length);
+        const fixture = FIXTURES.find(f => getMatchLabel(f) === matchKey);
+        const fee = fixture ? ROUND_FEES[fixture.round] : 10000;
+        const reward = Math.floor(data.predictions.length * fee / matchPredictions.length);
         matchPredictions.forEach(p => {
           winners.push({
             match: matchKey,
