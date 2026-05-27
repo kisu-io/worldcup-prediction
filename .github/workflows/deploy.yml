@@ -27,7 +27,15 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: https://rofwhndjmidfttszuwts.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_kHvVfhBxPrpx-LUyKIOdgw_D2_nbJov
+          VITE_SUPABASE_EDGE_BASE: https://rofwhndjmidfttszuwts.supabase.co/functions/v1
+        run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:

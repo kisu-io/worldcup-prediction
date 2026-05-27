@@ -14,7 +14,8 @@ dist-ssr
 
 # Environment variables
 .env
-.env.*
+.env.local
+.env.development
 
 # Firebase config with secrets (should come from env)
 firebase-config.json
@@ -28,3 +29,4 @@ firebase-config.json
 *.sw?
 
 dist
+supabase/.temp

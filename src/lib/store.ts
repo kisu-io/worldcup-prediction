@@ -1,58 +1,51 @@
-// Unified store: Firebase Realtime DB + localStorage fallback + Auth
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, set, get } from "firebase/database";
-import { getAuth, signInAnonymously, onAuthStateChanged, type User } from "firebase/auth";
+// Unified store: Supabase + localStorage fallback
+import { supabase, supabaseUrl } from "./supabase";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC4cqXffU53-0eMmmo4At89PtkuVUyxuL0",
-  authDomain: "wc2026-ef036.firebaseapp.com",
-  databaseURL: "https://wc2026-ef036-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "wc2026-ef036",
-  storageBucket: "wc2026-ef036.firebasestorage.app",
-  messagingSenderId: "87408081251",
-  appId: "1:87408081251:web:794030499ebd1eccf2bb56",
-  measurementId: "G-G04FJ9QGX0"
-};
+const isValidConfig = !!supabaseUrl && !supabaseUrl.includes("YOUR_SUPABASE_URL");
 
-const isValidConfig = !!firebaseConfig.databaseURL
-  && !firebaseConfig.databaseURL.includes("YOUR_DATABASE_URL");
+let _currentUserId: string | null = null;
+let _anonInitialized = false;
 
-let db: any = null;
-let auth: any = null;
-let _currentUser: User | null = null;
-
-if (isValidConfig) {
-  try {
-    const app = initializeApp(firebaseConfig);
-    db = getDatabase(app);
-    auth = getAuth(app);
-    // Auto sign-in anonymously
-    signInAnonymously(auth).catch((e) => {
-      console.warn("Anonymous auth failed:", e);
-    });
-    onAuthStateChanged(auth, (user) => {
-      _currentUser = user;
-    });
-  } catch (e) {
-    console.warn("Firebase init failed, using localStorage:", e);
+async function ensureAnonUser() {
+  if (!isValidConfig || _anonInitialized) return;
+  _anonInitialized = true;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    _currentUserId = session.user.id;
+    return;
   }
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) console.warn("Supabase anon auth failed:", error);
 }
 
-export { auth };
-export function getCurrentUser(): User | null { return _currentUser; }
-export function onUserChange(cb: (user: User | null) => void): () => void {
-  if (auth) {
-    return onAuthStateChanged(auth, cb);
+ensureAnonUser();
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  _currentUserId = session?.user?.id || null;
+});
+
+export function getCurrentUserId(): string | null {
+  if (!isValidConfig) return null;
+  return _currentUserId;
+}
+
+export function onUserChange(cb: (userId: string | null) => void): () => void {
+  if (!isValidConfig) {
+    cb(null);
+    return () => {};
   }
-  cb(null);
-  return () => {};
+  cb(_currentUserId);
+  const { data } = supabase.auth.onAuthStateChange((_e, session) => {
+    cb(session?.user?.id || null);
+  });
+  return () => data?.subscription?.unsubscribe?.();
 }
 
 export type MatchPrediction = {
   name: string;
   score: string;
   time: string;
-  uid?: string; // unique player id from auth
+  uid?: string;
 };
 
 export type MatchData = {
@@ -66,7 +59,7 @@ export type DBState = {
   globalFund: number;
 };
 
-const STORAGE_KEY = "wc2026_db_v4";
+const STORAGE_KEY = "wc2026_db_v5";
 
 const DEFAULT: DBState = { matches: {}, leaderboard: {}, globalFund: 0 };
 
@@ -82,8 +75,6 @@ function saveLocal(state: DBState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────
-
 let _state: DBState = loadLocal();
 
 export function loadState(): DBState {
@@ -95,73 +86,89 @@ export function saveState(state: DBState) {
   saveLocal(state);
   window.dispatchEvent(new CustomEvent("wc:dbchange"));
 
-  if (isValidConfig && db) {
-    try {
-      set(ref(db, "worldcup"), {
-        matches: state.matches,
-        leaderboard: state.leaderboard,
-        globalFund: state.globalFund,
-        updatedAt: Date.now(),
-        updatedBy: _currentUser?.uid || "anonymous"
-      });
-    } catch (e) {
-      console.warn("Firebase write failed:", e);
-    }
-  }
+  if (!isValidConfig) return;
+  supabase.from("worldcup_state").upsert({
+    id: "singleton",
+    matches: state.matches,
+    leaderboard: state.leaderboard,
+    globalFund: state.globalFund,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "id" }).then(({ error }) => {
+    if (error) console.warn("Supabase write failed:", error);
+  });
 }
 
 export function syncAppState(callback: (state: DBState) => void): () => void {
   _state = loadLocal();
   callback({ ..._state });
 
-  if (isValidConfig && db) {
-    const dbRef = ref(db, "worldcup");
-    const unsub = onValue(dbRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val) {
-        const newState: DBState = {
-          matches: val.matches || {},
-          leaderboard: val.leaderboard || {},
-          globalFund: val.globalFund || 0,
-        };
-        _state = newState;
-        saveLocal(newState);
-        callback(newState);
-      }
-    }, (err: any) => {
-      console.warn("Firebase sync error, using localStorage:", err);
-    });
-    return () => unsub();
+  if (!isValidConfig) {
+    const handler = () => {
+      _state = loadLocal();
+      callback({ ..._state });
+    };
+    window.addEventListener("wc:dbchange", handler);
+    return () => window.removeEventListener("wc:dbchange", handler);
   }
 
-  // Fallback: listen to localStorage changes
-  const handler = () => {
-    _state = loadLocal();
-    callback({ ..._state });
+  // Fetch once
+  supabase.from("worldcup_state").select("*").eq("id", "singleton").single().then(({ data, error }) => {
+    if (error) console.warn("Supabase fetch failed:", error);
+    if (data) {
+      const newState: DBState = {
+        matches: data.matches || {},
+        leaderboard: data.leaderboard || {},
+        globalFund: data.globalFund || 0,
+      };
+      _state = newState;
+      saveLocal(newState);
+      callback(newState);
+    }
+  });
+
+  // Realtime subscription
+  const channel = supabase.channel("worldcup_state").on(
+    "postgres_changes",
+    { event: "*", schema: "public", table: "worldcup_state" },
+    (payload) => {
+      const newData = payload.new as any;
+      if (!newData) return;
+      const newState: DBState = {
+        matches: newData.matches || {},
+        leaderboard: newData.leaderboard || {},
+        globalFund: newData.globalFund || 0,
+      };
+      _state = newState;
+      saveLocal(newState);
+      callback(newState);
+    }
+  ).subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
   };
-  window.addEventListener("wc:dbchange", handler);
-  return () => window.removeEventListener("wc:dbchange", handler);
 }
 
-// One-time fetch (for async operations)
 export async function fetchAppState(): Promise<DBState> {
-  if (isValidConfig && db) {
-    try {
-      const snap = await get(ref(db, "worldcup"));
-      const val = snap.val();
-      if (val) {
-        const s: DBState = {
-          matches: val.matches || {},
-          leaderboard: val.leaderboard || {},
-          globalFund: val.globalFund || 0,
-        };
-        _state = s;
-        saveLocal(s);
-        return s;
-      }
-    } catch (e) {
-      console.warn("Firebase fetch failed:", e);
-    }
+  if (!isValidConfig) return loadLocal();
+  const { data, error } = await supabase
+    .from("worldcup_state")
+    .select("*")
+    .eq("id", "singleton")
+    .single();
+  if (error) {
+    console.warn("Supabase fetch failed:", error);
+    return loadLocal();
+  }
+  if (data) {
+    const s: DBState = {
+      matches: data.matches || {},
+      leaderboard: data.leaderboard || {},
+      globalFund: data.globalFund || 0,
+    };
+    _state = s;
+    saveLocal(s);
+    return s;
   }
   return loadLocal();
 }

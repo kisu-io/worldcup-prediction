@@ -19,7 +19,7 @@ export const ROUND_KEYS = [
   "Vòng bảng",
   "Vòng 1/32",
   "Vòng 1/16",
-  "Vửng 1/8",
+  "Vòng 1/8",
   "Tứ kết",
   "Tranh hạng 3",
   "Chung kết",
@@ -31,7 +31,7 @@ export const ROUND_FEES: Record<RoundKey, number> = {
   "Vòng bảng": 10000,
   "Vòng 1/32": 20000,
   "Vòng 1/16": 20000,
-  "Vửng 1/8": 20000,
+  "Vòng 1/8": 20000,
   "Tứ kết": 20000,
   "Tranh hạng 3": 50000,
   "Chung kết": 100000,
@@ -42,7 +42,7 @@ export const ROUND_FUND_RATES: Record<RoundKey, number> = {
   "Vòng bảng": 0.10,
   "Vòng 1/32": 0.20,
   "Vòng 1/16": 0.20,
-  "Vửng 1/8": 0.20,
+  "Vòng 1/8": 0.20,
   "Tứ kết": 0.20,
   "Tranh hạng 3": 0.30,
   "Chung kết": 0.30,
@@ -174,8 +174,8 @@ export const FIXTURES: MatchFixture[] = [
   { id: "R32-12", homeTeam: "2E", awayTeam: "2G", date: "2026-07-01", time: "21:00", venue: "Soldier Field, Chicago", round: "Vòng 1/32" },
   { id: "R32-13", homeTeam: "2I", awayTeam: "2K", date: "2026-07-02", time: "15:00", venue: "Allegiant Stadium, Las Vegas", round: "Vòng 1/32" },
   { id: "R32-14", homeTeam: "2J", awayTeam: "2L", date: "2026-07-02", time: "19:00", venue: "Levi's Stadium, San Francisco", round: "Vòng 1/32" },
-  { id: "R32-15", homeTeam: "2M", awayTeam: "2O", date: "2026-07-02", time: "21:00", venue: "Camping World Stadium, Orlando", round: "Vòng 1/32" },
-  { id: "R32-16", homeTeam: "2N", awayTeam: "2P", date: "2026-07-03", time: "19:00", venue: "Raymond James Stadium, Tampa", round: "Vòng 1/32" },
+  { id: "R32-15", homeTeam: "1J", awayTeam: "3K/L", date: "2026-07-02", time: "21:00", venue: "Camping World Stadium, Orlando", round: "Vòng 1/32" },
+  { id: "R32-16", homeTeam: "1L", awayTeam: "3J/K", date: "2026-07-03", time: "19:00", venue: "Raymond James Stadium, Tampa", round: "Vòng 1/32" },
 
   // ===== ROUND OF 16 (July 4-7) =====
   { id: "R16-1", homeTeam: "W R32-1", awayTeam: "W R32-2", date: "2026-07-04", time: "15:00", venue: "AT&T Stadium, Dallas", round: "Vòng 1/16" },
@@ -194,8 +194,8 @@ export const FIXTURES: MatchFixture[] = [
   { id: "QF-4", homeTeam: "W R16-7", awayTeam: "W R16-8", date: "2026-07-11", time: "19:00", venue: "SoFi Stadium, Los Angeles", round: "Tứ kết" },
 
   // ===== SEMI FINALS (July 14-15) =====
-  { id: "SF-1", homeTeam: "W QF-1", awayTeam: "W QF-2", date: "2026-07-14", time: "20:00", venue: "AT&T Stadium, Dallas", round: "Vửng 1/8" },
-  { id: "SF-2", homeTeam: "W QF-3", awayTeam: "W QF-4", date: "2026-07-15", time: "20:00", venue: "MetLife Stadium, New York", round: "Vửng 1/8" },
+  { id: "SF-1", homeTeam: "W QF-1", awayTeam: "W QF-2", date: "2026-07-14", time: "20:00", venue: "AT&T Stadium, Dallas", round: "Vòng 1/8" },
+  { id: "SF-2", homeTeam: "W QF-3", awayTeam: "W QF-4", date: "2026-07-15", time: "20:00", venue: "MetLife Stadium, New York", round: "Vòng 1/8" },
 
   // ===== 3RD PLACE (July 18) =====
   { id: "3RD", homeTeam: "L SF-1", awayTeam: "L SF-2", date: "2026-07-18", time: "16:00", venue: "Hard Rock Stadium, Miami", round: "Tranh hạng 3" },
@@ -233,7 +233,7 @@ export const ROUND_DISPLAY: Record<RoundKey, string> = {
   "Vòng bảng": "Vòng bảng",
   "Vòng 1/32": "Vòng 1/32 (Round of 32)",
   "Vòng 1/16": "Vòng 1/16 (Round of 16)",
-  "Vửng 1/8": "Bán kết",
+  "Vòng 1/8": "Bán kết",
   "Tứ kết": "Tứ kết",
   "Tranh hạng 3": "Tranh hạng 3",
   "Chung kết": "Chung kết",

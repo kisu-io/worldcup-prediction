@@ -44,7 +44,7 @@ const ROUND_SHORT: Record<RoundKey, string> = {
   "Vòng bảng": "Bảng",
   "Vòng 1/32": "1/32",
   "Vòng 1/16": "1/16",
-  "Vửng 1/8": "BK",
+  "Vòng 1/8": "BK",
   "Tứ kết": "Tứ kết",
   "Tranh hạng 3": "H3",
   "Chung kết": "CK",
