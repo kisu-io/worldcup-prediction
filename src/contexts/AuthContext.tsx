@@ -51,6 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Fallback: force exit loading after 5s (prevents infinite spinner)
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000);
+
     const init = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -62,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Auth init failed:", err);
       } finally {
         setIsLoading(false);
+        clearTimeout(timer);
       }
     };
     init();
@@ -77,7 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
